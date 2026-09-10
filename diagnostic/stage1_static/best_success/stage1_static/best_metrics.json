@@ -1,0 +1,17 @@
+{
+  "step": 259896,
+  "stage_transitions": 259896,
+  "episodes": 40,
+  "success_rate": 1.0,
+  "safety_violation_rate": 0.0,
+  "robot_table_collision_rate": 0.0,
+  "robot_cube_collision_rate": 0.0,
+  "robot_floor_collision_rate": 0.0,
+  "pregrasp_rate": 1.0,
+  "ready_rate": 1.0,
+  "contact_rate": 1.0,
+  "held_rate": 1.0,
+  "mean_reward": 286.88722928927893,
+  "mean_ep_length": 320.0,
+  "mean_first_success_step": 84.95
+}
