@@ -1,0 +1,91 @@
+<mujoco model="ur5e suction tracking scene">
+  <include file="ur5e.xml"/>
+
+  <option gravity="0 0 -9.81"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.15 0.15 0.15" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="120" elevation="-20" offwidth="1280" offheight="720"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0"
+      width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge"
+      rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8"
+      width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true"
+      texrepeat="5 5" reflectance="0.2"/>
+    <material name="table_mat" rgba="0.45 0.48 0.52 1"/>
+    <material name="cube_mat" rgba="0.9 0.22 0.12 1"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 1.8" dir="0 0 -1" directional="true"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+
+    <!--
+      v6 场景布局：桌面前缘从旧版 y=0.25 m 后移到 y=0.42 m，
+      防止 upper_arm / shoulder 区域把桌面前缘当作支点。
+      台面中心 z=0.37，半厚度 0.03，因此台面高度为 0.40 m。
+    -->
+    <geom name="table" type="box" pos="0 0.62 0.37" size="0.35 0.20 0.03"
+      material="table_mat" friction="0.40 0.02 0.002" contype="1" conaffinity="2"/>
+
+    <!--
+      可抓取物块：freejoint 允许其在桌面上运动，并在被吸附后自由抬升。
+      训练时建议在 Python reset() 中随机化 x/y，并在 step() 中给它施加水平速度或外力。
+    -->
+    <body name="cube" pos="0 0.62 0.426">
+      <freejoint name="cube_free"/>
+      <geom name="cube_geom" type="box" size="0.025 0.025 0.025"
+        mass="0.12" material="cube_mat" friction="0.40 0.02 0.002"
+        condim="4" contype="2" conaffinity="5"/>
+      <site name="cube_center" pos="0 0 0" size="0.006"
+        rgba="1 1 0 0.8" group="4"/>
+      <site name="cube_top" pos="0 0 0.026" size="0.005"
+        rgba="0 0.8 1 0.8" group="4"/>
+    </body>
+
+    <!-- 固定全局相机仅用于调试/录像，不作为必须的 RL 观测 -->
+    <camera name="overview_camera" pos="1.0 0.45 1.4"
+      xyaxes="0 1 0 -0.7 0 0.7" fovy="55" resolution="640 480"/>
+  </worldbody>
+
+  <sensor>
+    <!-- 吸盘是否已经发生有效接触 -->
+    <touch name="suction_contact" site="suction_touch_site"/>
+
+    <!--
+      末端相机中的方块中心像素坐标 (u, v)。
+      可先作为低维视觉观测训练，无需一开始就训练 CNN。
+    -->
+    <camprojection name="cube_pixel" site="cube_center" camera="eef_camera"/>
+
+    <!--
+      方块中心在末端相机坐标系中的三维位置。
+      相机前方通常对应负 z，因此可用 -z 作为近似深度。
+    -->
+    <framepos name="cube_in_camera" objtype="site" objname="cube_center"
+      reftype="camera" refname="eef_camera"/>
+
+    <!-- 吸盘到方块顶部的相对位置，适合用于 dense reward / curriculum -->
+    <framepos name="cube_top_in_suction" objtype="site" objname="cube_top"
+      reftype="site" refname="suction_site"/>
+
+    <!-- 方块世界坐标速度：用于移动目标追踪和截获策略 -->
+    <framelinvel name="cube_velocity" objtype="body" objname="cube"/>
+  </sensor>
+
+  <!--
+    v6 home 状态：吸盘约位于工作区上方 x=0,y=0.58,z=0.62；后 7 个为 cube freejoint
+    [x y z qw qx qy qz]。
+    ctrl 前 6 个为关节目标，第 7 个为 suction，默认关闭。
+  -->
+  <keyframe>
+    <key name="home"
+      qpos="-1.80393646 -1.28628838 0.79165883 -1.07617120 -1.57079905 -0.23313646  0 0.62 0.426 1 0 0 0"
+      ctrl="-1.80393646 -1.28628838 0.79165883 -1.07617120 -1.57079905 -0.23313646  0"/>
+  </keyframe>
+</mujoco>
